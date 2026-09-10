@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>منصة ختمة | محاكاة تفاعلية للختمات الجماعية</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Readex Pro & Amiri -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Readex+Pro:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#F4F7F4',
+              100: '#E3EBE3',
+              500: '#2D5A27',
+              600: '#23471F',
+              700: '#193417',
+              gold: '#C5A059',
+              goldHover: '#B28E46',
+              bgLight: '#FBF9F5',
+              cardLight: '#FFFFFF',
+            }
+          },
+          fontFamily: {
+            sans: ['Readex Pro', 'sans-serif'],
+            quran: ['Amiri', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #FBF9F5;
+      background-image: radial-gradient(#2d5a270d 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+      font-family: 'Readex Pro', sans-serif;
+    }
+
+    .dark body {
+      background-color: #121813;
+      background-image: radial-gradient(#ffffff0a 1.5px, transparent 1.5px);
+    }
+
+    /* Pattern Border Overlay */
+    .islamic-pattern-bg {
+      background-color: #ffffff;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30L30 0zM30 10L50 30L30 50L10 30L30 10z' fill='%202d5a27' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+    }
+
+    .dark .islamic-pattern-bg {
+      background-color: #1a231b;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30L30 0zM30 10L50 30L30 50L10 30L30 10z' fill='%2ffffff' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+    }
+
+    /* Smooth Transitions */
+    .transition-all-custom {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Pulse Simulation Effect */
+    @keyframes pulse-gold {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(197, 160, 89, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(197, 160, 89, 0); }
+    }
+    .simulating-active {
+      animation: pulse-gold 2s infinite;
+    }
+  </style>
+</head>
+<body class="text-slate-800 dark:text-slate-100 min-h-screen flex flex-col justify-between selection:bg-brand-500 selection:text-white">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+
+  <!-- Top Bar / Simulation Banner -->
+  <div class="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-700 text-white text-xs md:text-sm py-2 px-4 shadow-sm">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+        <span class="font-medium">وضع المحاكاة المباشرة متوفر:</span>
+        <span class="text-slate-200 hidden sm:inline">جرّب تفاعل أعضاء المجموعة وتحديث الختمة تلقائياً!</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="sim-toggle-btn" onclick="toggleSimulationEngine()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-1 rounded-full text-xs transition-colors flex items-center gap-1.5">
+          <i class="fa-solid fa-play text-xs"></i>
+          <span>تشغيل محاكاة دخول القراء</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Header -->
+  <header class="border-b border-stone-200 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="showLandingView()">
+        <div class="w-10 h-10 rounded-xl bg-brand-500 text-amber-300 flex items-center justify-center text-2xl font-quran font-bold shadow-md shadow-brand-500/20">
+          خ
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold font-quran text-brand-500 dark:text-brand-gold leading-none">ختمة</h1>
+          <p class="text-[10px] text-stone-500 dark:text-stone-400">تنسيق الختمات القرآنية الجماعية</p>
+        </div>
+      </div>
+
+      <!-- Header Center - Ayah -->
+      <div class="hidden md:block text-center">
+        <p class="font-quran text-lg text-brand-gold dark:text-amber-400 italic">"فَاسْتَبِقُوا الْخَيْرَاتِ"</p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button onclick="toggleDarkMode()" class="w-9 h-9 rounded-lg border border-stone-200 dark:border-stone-700 flex items-center justify-center text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors" title="تبديل المظهر">
+          <i id="theme-icon" class="fa-solid fa-moon"></i>
+        </button>
+        <button onclick="showCreateModal()" class="bg-brand-500 hover:bg-brand-600 text-white font-medium text-xs sm:text-sm px-3.5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden sm:inline">أنشئ ختمة</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-grow">
+
+    <!-- VIEW 1: LANDING PAGE -->
+    <section id="view-landing" class="space-y-8">
+      
+      <!-- Hero Banner -->
+      <div class="islamic-pattern-bg rounded-2xl border border-stone-200 dark:border-stone-800 p-6 md:p-10 text-center shadow-sm relative overflow-hidden">
+        <div class="max-w-2xl mx-auto space-y-4 relative z-10">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-50 dark:bg-stone-800 text-brand-500 dark:text-brand-gold border border-brand-500/20">
+            <i class="fa-solid fa-heart text-xs text-rose-500"></i> خيري ومجاني 100% بدون تسجيل
+          </span>
+          <h2 class="text-3xl md:text-5xl font-bold font-quran text-brand-500 dark:text-stone-100 leading-tight">
+            شارِك الأجر ويسّر الختمة الجماعية
+          </h2>
+          <p class="text-sm md:text-base text-stone-600 dark:text-stone-300 leading-relaxed font-light">
+            منصة بسيطة لتنسيق ختم القرآن الكريم عن بُعد في المناسبات والأوقات الفضيلة، حجز الأجزاء بضغطة واحدة وبدون الحاجة لإدخال أي بيانات شخصية.
+          </p>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+            <button onclick="showCreateModal()" class="w-full sm:w-auto bg-brand-500 hover:bg-brand-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2">
+              <i class="fa-solid fa-circle-plus text-amber-300"></i>
+              <span>إنشاء ختمة جديدة الآن</span>
+            </button>
+            <button onclick="scrollToDemo()" class="w-full sm:w-auto bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-700 border border-stone-300 dark:border-stone-700 font-medium px-6 py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+              <i class="fa-solid fa-list-check text-brand-gold"></i>
+              <span>تصفح ختمات نموذجية للمحاكاة</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Direct Entry Card -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Action Card 1 -->
+        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:border-brand-500/40 transition-all">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-brand-gold flex items-center justify-center text-xl">
+              <i class="fa-solid fa-book-bookmark"></i>
+            </div>
+            <h3 class="text-xl font-bold font-quran text-brand-500 dark:text-stone-100">انضم بكود الختمة</h3>
+            <p class="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+              إذا وصلتك دعوة أو كود من صديق أو في مجموعة واتساب، أدخل الكود هنا للانضمام المباشر.
+            </p>
+          </div>
+          <div class="pt-5 flex gap-2">
+            <input type="text" id="join-code-input" placeholder="مثال: K-4892" class="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-2.5 text-sm font-semibold uppercase text-center focus:outline-none focus:border-brand-500">
+            <button onclick="joinKhatmaByCode()" class="bg-brand-gold hover:bg-brand-goldHover text-stone-900 font-bold px-5 py-2.5 rounded-xl text-sm transition-colors whitespace-nowrap">
+              دخول
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Card 2 -->
+        <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:border-brand-500/40 transition-all">
+          <div class="space-y-3">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-brand-500 flex items-center justify-center text-xl">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h3 class="text-xl font-bold font-quran text-brand-500 dark:text-stone-100">الخصوصية والأناقة</h3>
+            <p class="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+              يتم حجز الأجزاء بتسمية تلقائية محترمة مثل <b>(شخص 1، شخص 2...)</b> لضمان الخصوصية وإخلاص العمل.
+            </p>
+          </div>
+          <div class="pt-5 flex items-center justify-between text-xs text-brand-500 dark:text-amber-400 font-medium border-t border-stone-100 dark:border-stone-800">
+            <span><i class="fa-solid fa-bolt ml-1"></i> تحديث لحظي للجميع</span>
+            <span><i class="fa-solid fa-mobile-screen ml-1"></i> متوافق مع كافة الهواتف</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Demo Khatmas for Testing & Simulation -->
+      <div id="demo-section" class="space-y-4 pt-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold font-quran text-brand-500 dark:text-stone-200">ختمات جارية للمحاكاة (إضغط للتجربة)</h3>
+            <p class="text-xs text-stone-500">اختر ختمة جاهزة لتجربة طريقة التفاعل وحجز الأجزاء والتحديث التلقائي</p>
+          </div>
+          <button onclick="createNewDemoKhatma()" class="text-xs text-brand-500 dark:text-amber-400 font-semibold hover:underline flex items-center gap-1">
+            <i class="fa-solid fa-arrows-rotate"></i> تحديث القائمة
+          </button>
+        </div>
+
+        <div id="demo-khatmat-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated sample Khatmas -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VIEW 2: KHATMA DASHBOARD & GRID -->
+    <section id="view-dashboard" class="hidden space-y-6">
+      
+      <!-- Top Dashboard Info Card -->
+      <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5 md:p-7 shadow-sm space-y-5">
+        
+        <!-- Header & Action Row -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-100 dark:border-stone-800 pb-5">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span id="dash-code-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">
+                K-8921
+              </span>
+              <span id="sim-status-indicator" class="hidden items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">
+                <i class="fa-solid fa-circle text-[8px]"></i> محاكاة نشطة
+              </span>
+            </div>
+            <h2 id="dash-title" class="text-2xl md:text-3xl font-bold font-quran text-brand-500 dark:text-stone-100">
+              ختمة مباركة
+            </h2>
+            <p id="dash-desc" class="text-xs text-stone-500 dark:text-stone-400">
+              النية: نية شريفة لختم كتاب الله تعالى
+            </p>
+          </div>
+
+          <!-- Share & Actions -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="copyShareLink()" class="flex-1 sm:flex-none bg-brand-50 dark:bg-stone-800 text-brand-500 dark:text-amber-400 border border-brand-500/20 hover:bg-brand-100 text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+              <i class="fa-solid fa-share-nodes"></i>
+              <span>مشاركة الرابط</span>
+            </button>
+            <button onclick="pickRandomPart()" class="flex-1 sm:flex-none bg-brand-gold hover:bg-brand-goldHover text-stone-900 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm">
+              <i class="fa-solid fa-dice"></i>
+              <span>احجز لي جزءاً عشوائياً</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Metrics -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-medium">
+            <span class="text-stone-600 dark:text-stone-300">نسبة الاكتفاء والإنجاز الكلي</span>
+            <span id="dash-progress-text" class="text-brand-500 dark:text-amber-400 font-bold text-sm">0%</span>
+          </div>
+
+          <!-- Progress Bar Track -->
+          <div class="w-full bg-stone-100 dark:bg-stone-800 rounded-full h-3.5 overflow-hidden p-0.5 border border-stone-200 dark:border-stone-700">
+            <div id="dash-progress-bar" class="bg-gradient-to-r from-brand-gold via-brand-500 to-emerald-600 h-full rounded-full transition-all duration-500 ease-out w-0"></div>
+          </div>
+
+          <!-- Details Stats Grid -->
+          <div class="grid grid-cols-3 gap-2 pt-2 text-center text-xs">
+            <div class="bg-stone-50 dark:bg-stone-800/60 p-2.5 rounded-xl border border-stone-200/60 dark:border-stone-700/60">
+              <span class="block text-stone-400 text-[10px]">المتاحة للحجز</span>
+              <span id="stat-available" class="font-bold text-stone-700 dark:text-stone-200 text-base">30</span>
+            </div>
+            <div class="bg-amber-50/70 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-900/40">
+              <span class="block text-amber-700 dark:text-amber-400 text-[10px]">قيد القراءة</span>
+              <span id="stat-reading" class="font-bold text-amber-800 dark:text-amber-300 text-base">0</span>
+            </div>
+            <div class="bg-emerald-50/70 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200/60 dark:border-emerald-900/40">
+              <span class="block text-emerald-700 dark:text-emerald-400 text-[10px]">تمت القراءة</span>
+              <span id="stat-completed" class="font-bold text-emerald-800 dark:text-emerald-300 text-base">0</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Filter Controls & Quick Search -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-stone-900 p-3 rounded-xl border border-stone-200 dark:border-stone-800 text-xs">
+        
+        <!-- Filter Tabs -->
+        <div class="flex items-center gap-1 bg-stone-100 dark:bg-stone-800 p-1 rounded-lg">
+          <button onclick="setFilter('all')" id="filter-all" class="filter-tab px-3 py-1.5 rounded-md font-medium transition-colors bg-white dark:bg-stone-700 shadow-sm text-stone-800 dark:text-stone-100">
+            الكل (30)
+          </button>
+          <button onclick="setFilter('available')" id="filter-available" class="filter-tab px-3 py-1.5 rounded-md font-medium text-stone-500 hover:text-stone-800 dark:text-stone-400 transition-colors">
+            المتاحة
+          </button>
+          <button onclick="setFilter('reading')" id="filter-reading" class="filter-tab px-3 py-1.5 rounded-md font-medium text-stone-500 hover:text-stone-800 dark:text-stone-400 transition-colors">
+            قيد القراءة
+          </button>
+          <button onclick="setFilter('completed')" id="filter-completed" class="filter-tab px-3 py-1.5 rounded-md font-medium text-stone-500 hover:text-stone-800 dark:text-stone-400 transition-colors">
+            المكتملة
+          </button>
+        </div>
+
+        <!-- Simulation Speed control inside dashboard -->
+        <div class="flex items-center justify-between sm:justify-end gap-2 text-stone-500">
+          <span>وضع التحديث:</span>
+          <span class="font-semibold text-brand-500 dark:text-amber-400 flex items-center gap-1">
+            <i class="fa-solid fa-rotate text-[10px] animate-spin"></i> متصل وتفاعلي
+          </span>
+        </div>
+      </div>
+
+      <!-- 30 PARTS GRID -->
+      <div id="juz-grid-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3.5">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+
+      <!-- Back Navigation -->
+      <div class="pt-4 text-center">
+        <button onclick="showLandingView()" class="text-xs text-stone-500 hover:text-brand-500 dark:hover:text-amber-400 font-medium transition-colors inline-flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-right"></i>
+          <span>العودة للشاشة الرئيسية وتجربة ختمات أخرى</span>
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL: Create New Khatma -->
+  <div id="modal-create" class="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+      
+      <div class="flex items-center justify-between border-b border-stone-100 dark:border-stone-800 pb-3">
+        <h3 class="text-xl font-bold font-quran text-brand-500 dark:text-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-circle-plus"></i> إنشاء ختمة قرآنية جديدة
+        </h3>
+        <button onclick="closeCreateModal()" class="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm">
+        <div>
+          <label class="block font-semibold mb-1.5 text-stone-700 dark:text-stone-300">عنوان الختمة أو النية <span class="text-rose-500">*</span></label>
+          <input type="text" id="new-khatma-title" placeholder="مثال: ختمة روح الفقيد / ختمة رمضان المبارك" class="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1.5 text-stone-700 dark:text-stone-300">الوصف أو الملاحظات (اختياري)</label>
+          <textarea id="new-khatma-desc" rows="2" placeholder="أضف دعاء أو توجيه للمشاركين..." class="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-brand-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-1.5 text-stone-700 dark:text-stone-300">طريقة التسمية التلقائية للمشاركين</label>
+          <select id="new-khatma-naming" class="w-full bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-brand-500">
+            <option value="numbered">تسلسل تلقائي (شخص 1، شخص 2، ...)</option>
+            <option value="anonymous">فاعل خير</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="handleCreateKhatmaSubmit()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">
+          حفظ وإنشاء الختمة
+        </button>
+        <button onclick="closeCreateModal()" class="bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 font-medium px-4 py-2.5 rounded-xl text-sm hover:bg-stone-200 transition-colors">
+          إلغاء
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: Completion Duaa Celebration -->
+  <div id="modal-completion" class="fixed inset-0 z-50 bg-stone-900/70 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-stone-900 border border-brand-gold/40 w-full max-w-lg rounded-2xl p-6 md:p-8 shadow-2xl text-center space-y-5 relative overflow-hidden">
+      
+      <div class="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/60 text-brand-gold flex items-center justify-center text-3xl mx-auto shadow-inner">
+        <i class="fa-solid fa-kaaba"></i>
+      </div>
+
+      <div class="space-y-2">
+        <span class="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+          مبارك! تم إتمام الختمة بالكامل 🎉
+        </span>
+        <h3 class="text-2xl font-bold font-quran text-brand-500 dark:text-amber-400">
+          دعاء ختم القرآن الكريم
+        </h3>
+      </div>
+
+      <div class="bg-stone-50 dark:bg-stone-800/80 p-4 rounded-xl border border-stone-200 dark:border-stone-700 text-xs md:text-sm font-quran text-stone-700 dark:text-stone-200 leading-relaxed max-h-48 overflow-y-auto">
+        "اللَّهُمَّ ارْحَمْنِي بالقُرْآنِ وَاجْعَلْهُ لِي إِمَاماً وَنُوراً وَهُدًى وَرَحْمَةً، اللَّهُمَّ ذَكِّرْنِي مِنْهُ مَا نَسِيتُ وَعَلِّمْنِي مِنْهُ مَا جَهِلْتُ وَارْزُقْنِي تِلاَوَتَهُ آنَاءَ اللَّيْلِ وَأَطْرَافَ النَّهَارِ وَاجْعَلْهُ لِي حُجَّةً يَا رَبَّ العَالَمِينَ."
+      </div>
+
+      <button onclick="closeCompletionModal()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-lg">
+        تقبل الله منا ومنكم صالح الأعمال
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-stone-200 dark:border-stone-800 bg-white/50 dark:bg-stone-900/50 py-6 text-center text-xs text-stone-500 dark:text-stone-400 mt-10">
+    <div class="max-w-6xl mx-auto px-4 space-y-2">
+      <p class="font-quran text-sm text-brand-500 dark:text-amber-400">ختمة • تطبيق خيري لوجه الله تعالى</p>
+      <p>تصميم وتطوير هادئ ومريح للعين لتسهيل ختم الكتاب العزيز</p>
+    </div>
+  </footer>
+
+  <script>
+    /* ==========================================
+       STATE MANAGEMENT & MOCK DATABASE
+       ========================================== */
+    
+    // Surah Index for Parts
+    const JUZ_SURAH_MAP = {
+      1: "الفاتحة - البقرة 141",
+      2: "البقرة 142 - البقرة 252",
+      3: "البقرة 253 - آل عمران 92",
+      4: "آل عمران 93 - النساء 23",
+      5: "النساء 24 - النساء 147",
+      6: "النساء 148 - المائدة 81",
+      7: "المائدة 82 - الأنعام 110",
+      8: "الأنعام 111 - الأعراف 87",
+      9: "الأعراف 88 - الأنفال 40",
+      10: "الأنفال 41 - التوبة 92",
+      11: "التوبة 93 - هود 5",
+      12: "هود 6 - يوسف 52",
+      13: "يوسف 53 - إبراهيم 52",
+      14: "الحجر 1 - النحل 128",
+      15: "الإسراء 1 - الكهف 74",
+      16: "الكهف 75 - طه 135",
+      17: "الأنبياء 1 - الحج 78",
+      18: "المؤمنون 1 - الفرقان 20",
+      19: "الفرقان 21 - سبأ 45",
+      20: "النمل 56 - العنكبوت 45",
+      21: "العنكبوت 46 - الأحزاب 30",
+      22: "الأحزاب 31 - يس 27",
+      23: "يس 28 - الزمر 31",
+      24: "الزمر 32 - فصلت 46",
+      25: "فصلت 47 - الجاثية 37",
+      26: "الأحقاف 1 - الذاريات 30",
+      27: "الذاريات 31 - الحديد 29",
+      28: "المجادلة 1 - التحريم 12",
+      29: "الملك 1 - المرسلات 50",
+      30: "النبأ 1 - الناس 6"
+    };
+
+    // Store of all active khatmas in memory
+    let khatmasStore = {};
+    let activeKhatmaId = null;
+    let activeFilter = 'all';
+    let simulationInterval = null;
+    let userSequenceCounter = 1;
+
+    // Default Sample Data to initiate simulation right away
+    function seedInitialData() {
+      const demo1Parts = createEmptyParts();
+      // Pre-fill some parts for demo
+      demo1Parts[1] = { status: 'completed', user: 'شخص 1' };
+      demo1Parts[2] = { status: 'completed', user: 'شخص 2' };
+      demo1Parts[3] = { status: 'reading', user: 'شخص 3' };
+      demo1Parts[4] = { status: 'reading', user: 'شخص 4' };
+      demo1Parts[5] = { status: 'completed', user: 'شخص 5' };
+
+      const demo2Parts = createEmptyParts();
+      for(let i = 1; i <= 24; i++) {
+        demo2Parts[i] = { status: 'completed', user: `شخص ${i}` };
+      }
+      demo2Parts[25] = { status: 'reading', user: 'شخص 25' };
+
+      khatmasStore = {
+        'K-1001': {
+          id: 'K-1001',
+          title: 'ختمة نية الشفاء والعافية',
+          desc: 'دعاء بالشفاء العاجل للأهل والأقارب',
+          parts: demo1Parts,
+          createdAt: Date.now() - 3600000
+        },
+        'K-2024': {
+          id: 'K-2024',
+          title: 'ختمة الجمعة المباركة',
+          desc: 'ختمة جماعية يومية مباركة لثمار الأجر',
+          parts: demo2Parts,
+          createdAt: Date.now() - 7200000
+        }
+      };
+    }
+
+    function createEmptyParts() {
+      const parts = {};
+      for (let i = 1; i <= 30; i++) {
+        parts[i] = { status: 'available', user: '' };
+      }
+      return parts;
+    }
+
+    /* ==========================================
+       UI CONTROLLER & NAVIGATION
+       ========================================== */
+
+    window.onload = function() {
+      seedInitialData();
+      renderDemoKhatmat();
+      
+      // Hash listener for direct links
+      const hash = window.location.hash.replace('#', '').trim();
+      if (hash && khatmasStore[hash]) {
+        openKhatma(hash);
+      } else {
+        showLandingView();
+      }
+    };
+
+    function showLandingView() {
+      document.getElementById('view-landing').classList.remove('hidden');
+      document.getElementById('view-dashboard').classList.add('hidden');
+      window.location.hash = '';
+      activeKhatmaId = null;
+      renderDemoKhatmat();
+    }
+
+    function openKhatma(id) {
+      if (!khatmasStore[id]) {
+        showToast("لم يتم العثور على هذه الختمة!", "error");
+        return;
+      }
+      activeKhatmaId = id;
+      window.location.hash = id;
+
+      document.getElementById('view-landing').classList.add('hidden');
+      document.getElementById('view-dashboard').classList.remove('hidden');
+
+      renderDashboard();
+    }
+
+    function renderDemoKhatmat() {
+      const listContainer = document.getElementById('demo-khatmat-list');
+      if (!listContainer) return;
+
+      listContainer.innerHTML = '';
+
+      Object.values(khatmasStore).forEach(k => {
+        let completed = 0;
+        Object.values(k.parts).forEach(p => { if (p.status === 'completed') completed++; });
+        const percent = Math.round((completed / 30) * 100);
+
+        const item = document.createElement('div');
+        item.className = "bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4 hover:border-brand-500/50 transition-all cursor-pointer shadow-sm flex flex-col justify-between";
+        item.onclick = () => openKhatma(k.id);
+
+        item.innerHTML = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300">${k.id}</span>
+              <span class="text-xs text-brand-500 dark:text-amber-400 font-semibold">${percent}% مكتمل</span>
+            </div>
+            <h4 class="font-bold font-quran text-base text-stone-800 dark:text-stone-100 leading-snug">${k.title}</h4>
+            <p class="text-xs text-stone-500 line-clamp-1">${k.desc || 'ختمة جماعية مباركة'}</p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs text-stone-400">
+            <span>${completed}/30 جزء</span>
+            <span class="text-brand-500 dark:text-amber-400 font-medium">عرض الختمة ←</span>
+          </div>
+        `;
+
+        listContainer.appendChild(item);
+      });
+    }
+
+    /* ==========================================
+       DASHBOARD RENDERER & PART ACTIONS
+       ========================================== */
+
+    function renderDashboard() {
+      const khatma = khatmasStore[activeKhatmaId];
+      if (!khatma) return;
+
+      document.getElementById('dash-code-badge').innerText = khatma.id;
+      document.getElementById('dash-title').innerText = khatma.title;
+      document.getElementById('dash-desc').innerText = khatma.desc ? `النية: ${khatma.desc}` : 'ختمة قرآن كريم مباركة';
+
+      // Statistics Calculation
+      let countAvail = 0, countRead = 0, countComp = 0;
+      Object.values(khatma.parts).forEach(p => {
+        if (p.status === 'available') countAvail++;
+        if (p.status === 'reading') countRead++;
+        if (p.status === 'completed') countComp++;
+      });
+
+      document.getElementById('stat-available').innerText = countAvail;
+      document.getElementById('stat-reading').innerText = countRead;
+      document.getElementById('stat-completed').innerText = countComp;
+
+      const percent = Math.round((countComp / 30) * 100);
+      document.getElementById('dash-progress-text').innerText = percent + '%';
+      document.getElementById('dash-progress-bar').style.width = percent + '%';
+
+      // Check for 100% completion
+      if (countComp === 30 && !khatma.celebrated) {
+        khatma.celebrated = true;
+        showCompletionModal();
+      }
+
+      // Render 30 Cards Grid
+      const container = document.getElementById('juz-grid-container');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= 30; i++) {
+        const part = khatma.parts[i];
+
+        // Apply tab filter
+        if (activeFilter !== 'all' && part.status !== activeFilter) {
+          continue;
+        }
+
+        const surahText = JUZ_SURAH_MAP[i] || '';
+        const card = document.createElement('div');
+        
+        // Dynamic card styling based on state
+        let borderBgStyle = '';
+        let statusBadge = '';
+        let actionBtn = '';
+
+        if (part.status === 'available') {
+          borderBgStyle = 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 hover:border-brand-500/60';
+          statusBadge = `<span class="text-[10px] text-stone-400">متاح للحجز</span>`;
+          actionBtn = `
+            <button onclick="changePartStatus(${i}, 'reading')" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-1.5 px-2 rounded-lg text-xs transition-colors shadow-xs">
+              احجز الجزء
+            </button>`;
+        } else if (part.status === 'reading') {
+          borderBgStyle = 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800/60';
+          statusBadge = `<span class="text-[10px] text-amber-700 dark:text-amber-400 font-medium">قيد القراءة: <b>${part.user}</b></span>`;
+          actionBtn = `
+            <button onclick="changePartStatus(${i}, 'completed')" class="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 font-bold py-1.5 px-2 rounded-lg text-xs transition-colors">
+              تمت القراءة ✓
+            </button>`;
+        } else if (part.status === 'completed') {
+          borderBgStyle = 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/60';
+          statusBadge = `<span class="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">بواسطة: ${part.user}</span>`;
+          actionBtn = `
+            <div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 py-1 flex items-center justify-center gap-1">
+              <i class="fa-solid fa-circle-check"></i> مكتمل
+            </div>`;
+        }
+
+        card.className = `border rounded-xl p-3 flex flex-col justify-between min-h-[125px] transition-all duration-200 shadow-2xs ${borderBgStyle}`;
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-bold text-sm text-brand-500 dark:text-amber-400 font-quran">الجزء ${i}</span>
+              <span class="text-[9px] text-stone-400">#${i}</span>
+            </div>
+            <p class="text-[10px] text-stone-500 dark:text-stone-400 line-clamp-1 mb-2">${surahText}</p>
+          </div>
+          <div class="space-y-2 mt-auto">
+            ${statusBadge}
+            ${actionBtn}
+          </div>
+        `;
+
+        container.appendChild(card);
+      }
+    }
+
+    // Change status of a specific part
+    function changePartStatus(partNumber, newStatus) {
+      if (!activeKhatmaId || !khatmasStore[activeKhatmaId]) return;
+
+      const khatma = khatmasStore[activeKhatmaId];
+      let assignedUser = khatma.parts[partNumber].user;
+
+      if (newStatus === 'reading' && !assignedUser) {
+        assignedUser = `شخص ${userSequenceCounter++}`;
+        showToast(`تم حجز الجزء ${partNumber} باسم (${assignedUser}) بنجاح`, "success");
+      } else if (newStatus === 'completed') {
+        showToast(`تقبل الله! تم تعيين الجزء ${partNumber} كمكتمل`, "success");
+      }
+
+      khatma.parts[partNumber] = {
+        status: newStatus,
+        user: assignedUser || `شخص ${userSequenceCounter}`
+      };
+
+      renderDashboard();
+    }
+
+    // Pick random available part
+    function pickRandomPart() {
+      if (!activeKhatmaId || !khatmasStore[activeKhatmaId]) return;
+      const khatma = khatmasStore[activeKhatmaId];
+
+      const availableNumbers = [];
+      for (let i = 1; i <= 30; i++) {
+        if (khatma.parts[i].status === 'available') availableNumbers.push(i);
+      }
+
+      if (availableNumbers.length === 0) {
+        showToast("جميع الأجزاء محجوزة أو مكتملة بالفعل!", "warning");
+        return;
+      }
+
+      const randomJuz = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
+      changePartStatus(randomJuz, 'reading');
+    }
+
+    // Set Grid Filter Tab
+    function setFilter(filterType) {
+      activeFilter = filterType;
+      document.querySelectorAll('.filter-tab').forEach(btn => {
+        btn.classList.remove('bg-white', 'dark:bg-stone-700', 'shadow-sm', 'text-stone-800', 'dark:text-stone-100');
+        btn.classList.add('text-stone-500', 'dark:text-stone-400');
+      });
+
+      const activeBtn = document.getElementById(`filter-${filterType}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-white', 'dark:bg-stone-700', 'shadow-sm', 'text-stone-800', 'dark:text-stone-100');
+        activeBtn.classList.remove('text-stone-500', 'dark:text-stone-400');
+      }
+
+      renderDashboard();
+    }
+
+    /* ==========================================
+       REAL-TIME LIVE SIMULATION ENGINE
+       ========================================== */
+
+    function toggleSimulationEngine() {
+      const btn = document.getElementById('sim-toggle-btn');
+      const indicator = document.getElementById('sim-status-indicator');
+
+      if (simulationInterval) {
+        // Stop Simulation
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        btn.innerHTML = `<i class="fa-solid fa-play text-xs"></i> <span>تشغيل محاكاة دخول القراء</span>`;
+        btn.classList.replace('bg-rose-600', 'bg-amber-500');
+        if(indicator) indicator.classList.add('hidden');
+        showToast("تم إيقاف محاكاة التفاعل الآلي", "info");
+      } else {
+        // Start Simulation
+        if (!activeKhatmaId) {
+          // Open first available demo
+          const keys = Object.keys(khatmasStore);
+          if (keys.length > 0) openKhatma(keys[0]);
+        }
+
+        simulationInterval = setInterval(runSimulationStep, 2500);
+        btn.innerHTML = `<i class="fa-solid fa-pause text-xs"></i> <span>إيقاف المحاكاة الآلية</span>`;
+        btn.classList.replace('bg-amber-500', 'bg-rose-600');
+        if(indicator) indicator.classList.remove('hidden');
+        showToast("بدأت المحاكاة: سيقوم النظام بمحاكاة انضمام أشخاص آخرين الآن!", "success");
+      }
+    }
+
+    function runSimulationStep() {
+      if (!activeKhatmaId || !khatmasStore[activeKhatmaId]) return;
+      const khatma = khatmasStore[activeKhatmaId];
+
+      const available = [];
+      const reading = [];
+
+      for (let i = 1; i <= 30; i++) {
+        if (khatma.parts[i].status === 'available') available.push(i);
+        if (khatma.parts[i].status === 'reading') reading.push(i);
+      }
+
+      // Random action: Either reserve an available part OR finish a reading part
+      const actionType = Math.random() > 0.4 ? 'reserve' : 'finish';
+
+      if (actionType === 'reserve' && available.length > 0) {
+        const juzToReserve = available[Math.floor(Math.random() * available.length)];
+        const simUser = `شخص ${userSequenceCounter++}`;
+        khatma.parts[juzToReserve] = { status: 'reading', user: simUser };
+        showToast(`[محاكاة] قام (${simUser}) بحجز الجزء ${juzToReserve}`, "info");
+      } else if (reading.length > 0) {
+        const juzToFinish = reading[Math.floor(Math.random() * reading.length)];
+        khatma.parts[juzToFinish].status = 'completed';
+        showToast(`[محاكاة] أتم (${khatma.parts[juzToFinish].user}) قراءة الجزء ${juzToFinish} ✓`, "success");
+      }
+
+      renderDashboard();
+    }
+
+    /* ==========================================
+       CREATE KHATMA MODAL & HANDLERS
+       ========================================== */
+
+    function showCreateModal() {
+      document.getElementById('modal-create').classList.remove('hidden');
+      document.getElementById('modal-create').classList.add('flex');
+    }
+
+    function closeCreateModal() {
+      document.getElementById('modal-create').classList.add('hidden');
+      document.getElementById('modal-create').classList.remove('flex');
+    }
+
+    function handleCreateKhatmaSubmit() {
+      const title = document.getElementById('new-khatma-title').value.trim();
+      const desc = document.getElementById('new-khatma-desc').value.trim();
+
+      if (!title) {
+        showToast("يرجى كتابة عنوان الختمة أو النية", "warning");
+        return;
+      }
+
+      const id = "K-" + Math.floor(1000 + Math.random() * 9000);
+      khatmasStore[id] = {
+        id: id,
+        title: title,
+        desc: desc,
+        parts: createEmptyParts(),
+        createdAt: Date.now()
+      };
+
+      closeCreateModal();
+      document.getElementById('new-khatma-title').value = '';
+      document.getElementById('new-khatma-desc').value = '';
+
+      showToast(`تم إنشاء الختمة بنجاح بكود (${id})`, "success");
+      openKhatma(id);
+    }
+
+    function joinKhatmaByCode() {
+      const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+      if (!code) {
+        showToast("يرجى إدخال كود الختمة أولاً", "warning");
+        return;
+      }
+
+      if (khatmasStore[code]) {
+        openKhatma(code);
+      } else {
+        // Auto create mock khatma for user experience
+        khatmasStore[code] = {
+          id: code,
+          title: `ختمة (${code})`,
+          desc: 'ختمة منشأة حديثاً عبر الكود',
+          parts: createEmptyParts(),
+          createdAt: Date.now()
+        };
+        openKhatma(code);
+      }
+    }
+
+    function createNewDemoKhatma() {
+      const newId = "K-" + Math.floor(3000 + Math.random() * 6000);
+      const parts = createEmptyParts();
+      // random 3 parts reading
+      parts[1] = { status: 'reading', user: 'شخص 1' };
+      parts[7] = { status: 'completed', user: 'شخص 2' };
+
+      khatmasStore[newId] = {
+        id: newId,
+        title: `ختمة الأجر والعافية ${newId}`,
+        desc: 'ختمة جماعية تجريبية جارية',
+        parts: parts,
+        createdAt: Date.now()
+      };
+
+      renderDemoKhatmat();
+      showToast("تم إضافة ختمة نموذجية جديدة للتحقق", "info");
+    }
+
+    /* ==========================================
+       UTILITIES, TOASTS & DARK MODE
+       ========================================== */
+
+    function copyShareLink() {
+      if (!activeKhatmaId) return;
+      const url = window.location.origin + window.location.pathname + '#' + activeKhatmaId;
+      
+      // Fallback copy execCommand
+      const tempInput = document.createElement("input");
+      tempInput.value = url;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+
+      showToast("تم نسخ رابط الختمة للمشاركة بنجاح! 📋", "success");
+    }
+
+    function showCompletionModal() {
+      document.getElementById('modal-completion').classList.remove('hidden');
+      document.getElementById('modal-completion').classList.add('flex');
+    }
+
+    function closeCompletionModal() {
+      document.getElementById('modal-completion').classList.add('hidden');
+      document.getElementById('modal-completion').classList.remove('flex');
+    }
+
+    function scrollToDemo() {
+      const el = document.getElementById('demo-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const icon = document.getElementById('theme-icon');
+      if (isDark) {
+        icon.className = 'fa-solid fa-sun text-amber-400';
+      } else {
+        icon.className = 'fa-solid fa-moon';
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      
+      let bgClass = 'bg-stone-800 text-white';
+      let icon = '<i class="fa-solid fa-circle-info text-sky-400"></i>';
+
+      if (type === 'success') {
+        bgClass = 'bg-brand-500 text-white';
+        icon = '<i class="fa-solid fa-circle-check text-amber-300"></i>';
+      } else if (type === 'warning') {
+        bgClass = 'bg-amber-600 text-white';
+        icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      } else if (type === 'error') {
+        bgClass = 'bg-rose-600 text-white';
+        icon = '<i class="fa-solid fa-circle-exclamation"></i>';
+      }
+
+      toast.className = `${bgClass} shadow-xl rounded-xl p-3 text-xs font-medium flex items-center justify-between gap-3 pointer-events-auto transform transition-all duration-300 translate-y-[-10px] opacity-0 border border-white/10`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          ${icon}
+          <span>${message}</span>
+        </div>
+        <button onclick="this.parentElement.remove()" class="opacity-70 hover:opacity-100 text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+
+      container.appendChild(toast);
+
+      // Animate In
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+      });
+
+      // Auto Dismiss
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-[-10px]');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+  </script>
+
+</body>
+</html>
