@@ -424,12 +424,25 @@
     </div>
   </footer>
 
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
   <script>
     /* ==========================================
-       STATE MANAGEMENT & MOCK DATABASE
+       FIREBASE CONFIGURATION
        ========================================== */
-    
-    // Surah Index for Parts
+    const firebaseConfig = {
+      databaseURL: "https://khatma-for-all-default-rtdb.firebaseio.com"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    /* ==========================================
+       STATE MANAGEMENT & MAPS
+       ========================================== */
     const JUZ_SURAH_MAP = {
       1: "الفاتحة - البقرة 141",
       2: "البقرة 142 - البقرة 252",
@@ -463,46 +476,11 @@
       30: "النبأ 1 - الناس 6"
     };
 
-    // Store of all active khatmas in memory
-    let khatmasStore = {};
+    let currentKhatmaData = null;
     let activeKhatmaId = null;
     let activeFilter = 'all';
     let simulationInterval = null;
     let userSequenceCounter = 1;
-
-    // Default Sample Data to initiate simulation right away
-    function seedInitialData() {
-      const demo1Parts = createEmptyParts();
-      // Pre-fill some parts for demo
-      demo1Parts[1] = { status: 'completed', user: 'شخص 1' };
-      demo1Parts[2] = { status: 'completed', user: 'شخص 2' };
-      demo1Parts[3] = { status: 'reading', user: 'شخص 3' };
-      demo1Parts[4] = { status: 'reading', user: 'شخص 4' };
-      demo1Parts[5] = { status: 'completed', user: 'شخص 5' };
-
-      const demo2Parts = createEmptyParts();
-      for(let i = 1; i <= 24; i++) {
-        demo2Parts[i] = { status: 'completed', user: `شخص ${i}` };
-      }
-      demo2Parts[25] = { status: 'reading', user: 'شخص 25' };
-
-      khatmasStore = {
-        'K-1001': {
-          id: 'K-1001',
-          title: 'ختمة نية الشفاء والعافية',
-          desc: 'دعاء بالشفاء العاجل للأهل والأقارب',
-          parts: demo1Parts,
-          createdAt: Date.now() - 3600000
-        },
-        'K-2024': {
-          id: 'K-2024',
-          title: 'ختمة الجمعة المباركة',
-          desc: 'ختمة جماعية يومية مباركة لثمار الأجر',
-          parts: demo2Parts,
-          createdAt: Date.now() - 7200000
-        }
-      };
-    }
 
     function createEmptyParts() {
       const parts = {};
@@ -513,16 +491,13 @@
     }
 
     /* ==========================================
-       UI CONTROLLER & NAVIGATION
+       UI CONTROLLER & REALTIME LISTENERS
        ========================================== */
-
     window.onload = function() {
-      seedInitialData();
-      renderDemoKhatmat();
-      
-      // Hash listener for direct links
+      listenToAllKhatmas();
+
       const hash = window.location.hash.replace('#', '').trim();
-      if (hash && khatmasStore[hash]) {
+      if (hash) {
         openKhatma(hash);
       } else {
         showLandingView();
@@ -530,36 +505,57 @@
     };
 
     function showLandingView() {
+      if (activeKhatmaId) {
+        db.ref('khatmas/' + activeKhatmaId).off();
+      }
       document.getElementById('view-landing').classList.remove('hidden');
       document.getElementById('view-dashboard').classList.add('hidden');
       window.location.hash = '';
       activeKhatmaId = null;
-      renderDemoKhatmat();
     }
 
     function openKhatma(id) {
-      if (!khatmasStore[id]) {
-        showToast("لم يتم العثور على هذه الختمة!", "error");
-        return;
+      if (activeKhatmaId) {
+        db.ref('khatmas/' + activeKhatmaId).off();
       }
+
       activeKhatmaId = id;
       window.location.hash = id;
 
       document.getElementById('view-landing').classList.add('hidden');
       document.getElementById('view-dashboard').classList.remove('hidden');
 
-      renderDashboard();
+      // الاستماع اللحظي للتغييرات من فيربيز
+      db.ref('khatmas/' + id).on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) {
+          showToast("لم يتم العثور على هذه الختمة!", "error");
+          showLandingView();
+          return;
+        }
+        currentKhatmaData = data;
+        renderDashboard();
+      });
     }
 
-    function renderDemoKhatmat() {
+    function listenToAllKhatmas() {
+      db.ref('khatmas').limitToLast(6).on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        renderDemoKhatmat(data);
+      });
+    }
+
+    function renderDemoKhatmat(khatmas) {
       const listContainer = document.getElementById('demo-khatmat-list');
       if (!listContainer) return;
 
       listContainer.innerHTML = '';
 
-      Object.values(khatmasStore).forEach(k => {
+      Object.values(khatmas).reverse().forEach(k => {
         let completed = 0;
-        Object.values(k.parts).forEach(p => { if (p.status === 'completed') completed++; });
+        if (k.parts) {
+          Object.values(k.parts).forEach(p => { if (p.status === 'completed') completed++; });
+        }
         const percent = Math.round((completed / 30) * 100);
 
         const item = document.createElement('div');
@@ -586,24 +582,23 @@
     }
 
     /* ==========================================
-       DASHBOARD RENDERER & PART ACTIONS
+       DASHBOARD RENDERER & ACTIONS
        ========================================== */
-
     function renderDashboard() {
-      const khatma = khatmasStore[activeKhatmaId];
-      if (!khatma) return;
+      if (!currentKhatmaData) return;
 
-      document.getElementById('dash-code-badge').innerText = khatma.id;
-      document.getElementById('dash-title').innerText = khatma.title;
-      document.getElementById('dash-desc').innerText = khatma.desc ? `النية: ${khatma.desc}` : 'ختمة قرآن كريم مباركة';
+      document.getElementById('dash-code-badge').innerText = currentKhatmaData.id;
+      document.getElementById('dash-title').innerText = currentKhatmaData.title;
+      document.getElementById('dash-desc').innerText = currentKhatmaData.desc ? `النية: ${currentKhatmaData.desc}` : 'ختمة قرآن كريم مباركة';
 
-      // Statistics Calculation
       let countAvail = 0, countRead = 0, countComp = 0;
-      Object.values(khatma.parts).forEach(p => {
-        if (p.status === 'available') countAvail++;
-        if (p.status === 'reading') countRead++;
-        if (p.status === 'completed') countComp++;
-      });
+      if (currentKhatmaData.parts) {
+        Object.values(currentKhatmaData.parts).forEach(p => {
+          if (p.status === 'available') countAvail++;
+          if (p.status === 'reading') countRead++;
+          if (p.status === 'completed') countComp++;
+        });
+      }
 
       document.getElementById('stat-available').innerText = countAvail;
       document.getElementById('stat-reading').innerText = countRead;
@@ -613,28 +608,22 @@
       document.getElementById('dash-progress-text').innerText = percent + '%';
       document.getElementById('dash-progress-bar').style.width = percent + '%';
 
-      // Check for 100% completion
-      if (countComp === 30 && !khatma.celebrated) {
-        khatma.celebrated = true;
+      if (countComp === 30 && !currentKhatmaData.celebrated) {
+        db.ref('khatmas/' + activeKhatmaId + '/celebrated').set(true);
         showCompletionModal();
       }
 
-      // Render 30 Cards Grid
       const container = document.getElementById('juz-grid-container');
       container.innerHTML = '';
 
       for (let i = 1; i <= 30; i++) {
-        const part = khatma.parts[i];
+        const part = (currentKhatmaData.parts && currentKhatmaData.parts[i]) || { status: 'available', user: '' };
 
-        // Apply tab filter
-        if (activeFilter !== 'all' && part.status !== activeFilter) {
-          continue;
-        }
+        if (activeFilter !== 'all' && part.status !== activeFilter) continue;
 
         const surahText = JUZ_SURAH_MAP[i] || '';
         const card = document.createElement('div');
         
-        // Dynamic card styling based on state
         let borderBgStyle = '';
         let statusBadge = '';
         let actionBtn = '';
@@ -681,12 +670,11 @@
       }
     }
 
-    // Change status of a specific part
     function changePartStatus(partNumber, newStatus) {
-      if (!activeKhatmaId || !khatmasStore[activeKhatmaId]) return;
+      if (!activeKhatmaId || !currentKhatmaData) return;
 
-      const khatma = khatmasStore[activeKhatmaId];
-      let assignedUser = khatma.parts[partNumber].user;
+      const currentPart = (currentKhatmaData.parts && currentKhatmaData.parts[partNumber]) || {};
+      let assignedUser = currentPart.user;
 
       if (newStatus === 'reading' && !assignedUser) {
         assignedUser = `شخص ${userSequenceCounter++}`;
@@ -695,22 +683,20 @@
         showToast(`تقبل الله! تم تعيين الجزء ${partNumber} كمكتمل`, "success");
       }
 
-      khatma.parts[partNumber] = {
+      db.ref(`khatmas/${activeKhatmaId}/parts/${partNumber}`).set({
         status: newStatus,
         user: assignedUser || `شخص ${userSequenceCounter}`
-      };
-
-      renderDashboard();
+      });
     }
 
-    // Pick random available part
     function pickRandomPart() {
-      if (!activeKhatmaId || !khatmasStore[activeKhatmaId]) return;
-      const khatma = khatmasStore[activeKhatmaId];
+      if (!currentKhatmaData || !currentKhatmaData.parts) return;
 
       const availableNumbers = [];
       for (let i = 1; i <= 30; i++) {
-        if (khatma.parts[i].status === 'available') availableNumbers.push(i);
+        if (currentKhatmaData.parts[i] && currentKhatmaData.parts[i].status === 'available') {
+          availableNumbers.push(i);
+        }
       }
 
       if (availableNumbers.length === 0) {
@@ -722,7 +708,6 @@
       changePartStatus(randomJuz, 'reading');
     }
 
-    // Set Grid Filter Tab
     function setFilter(filterType) {
       activeFilter = filterType;
       document.querySelectorAll('.filter-tab').forEach(btn => {
@@ -740,70 +725,8 @@
     }
 
     /* ==========================================
-       REAL-TIME LIVE SIMULATION ENGINE
-       ========================================== */
-
-    function toggleSimulationEngine() {
-      const btn = document.getElementById('sim-toggle-btn');
-      const indicator = document.getElementById('sim-status-indicator');
-
-      if (simulationInterval) {
-        // Stop Simulation
-        clearInterval(simulationInterval);
-        simulationInterval = null;
-        btn.innerHTML = `<i class="fa-solid fa-play text-xs"></i> <span>تشغيل محاكاة دخول القراء</span>`;
-        btn.classList.replace('bg-rose-600', 'bg-amber-500');
-        if(indicator) indicator.classList.add('hidden');
-        showToast("تم إيقاف محاكاة التفاعل الآلي", "info");
-      } else {
-        // Start Simulation
-        if (!activeKhatmaId) {
-          // Open first available demo
-          const keys = Object.keys(khatmasStore);
-          if (keys.length > 0) openKhatma(keys[0]);
-        }
-
-        simulationInterval = setInterval(runSimulationStep, 2500);
-        btn.innerHTML = `<i class="fa-solid fa-pause text-xs"></i> <span>إيقاف المحاكاة الآلية</span>`;
-        btn.classList.replace('bg-amber-500', 'bg-rose-600');
-        if(indicator) indicator.classList.remove('hidden');
-        showToast("بدأت المحاكاة: سيقوم النظام بمحاكاة انضمام أشخاص آخرين الآن!", "success");
-      }
-    }
-
-    function runSimulationStep() {
-      if (!activeKhatmaId || !khatmasStore[activeKhatmaId]) return;
-      const khatma = khatmasStore[activeKhatmaId];
-
-      const available = [];
-      const reading = [];
-
-      for (let i = 1; i <= 30; i++) {
-        if (khatma.parts[i].status === 'available') available.push(i);
-        if (khatma.parts[i].status === 'reading') reading.push(i);
-      }
-
-      // Random action: Either reserve an available part OR finish a reading part
-      const actionType = Math.random() > 0.4 ? 'reserve' : 'finish';
-
-      if (actionType === 'reserve' && available.length > 0) {
-        const juzToReserve = available[Math.floor(Math.random() * available.length)];
-        const simUser = `شخص ${userSequenceCounter++}`;
-        khatma.parts[juzToReserve] = { status: 'reading', user: simUser };
-        showToast(`[محاكاة] قام (${simUser}) بحجز الجزء ${juzToReserve}`, "info");
-      } else if (reading.length > 0) {
-        const juzToFinish = reading[Math.floor(Math.random() * reading.length)];
-        khatma.parts[juzToFinish].status = 'completed';
-        showToast(`[محاكاة] أتم (${khatma.parts[juzToFinish].user}) قراءة الجزء ${juzToFinish} ✓`, "success");
-      }
-
-      renderDashboard();
-    }
-
-    /* ==========================================
        CREATE KHATMA MODAL & HANDLERS
        ========================================== */
-
     function showCreateModal() {
       document.getElementById('modal-create').classList.remove('hidden');
       document.getElementById('modal-create').classList.add('flex');
@@ -824,7 +747,7 @@
       }
 
       const id = "K-" + Math.floor(1000 + Math.random() * 9000);
-      khatmasStore[id] = {
+      const newKhatma = {
         id: id,
         title: title,
         desc: desc,
@@ -832,12 +755,14 @@
         createdAt: Date.now()
       };
 
-      closeCreateModal();
-      document.getElementById('new-khatma-title').value = '';
-      document.getElementById('new-khatma-desc').value = '';
+      db.ref('khatmas/' + id).set(newKhatma).then(() => {
+        closeCreateModal();
+        document.getElementById('new-khatma-title').value = '';
+        document.getElementById('new-khatma-desc').value = '';
 
-      showToast(`تم إنشاء الختمة بنجاح بكود (${id})`, "success");
-      openKhatma(id);
+        showToast(`تم إنشاء الختمة بنجاح بكود (${id})`, "success");
+        openKhatma(id);
+      });
     }
 
     function joinKhatmaByCode() {
@@ -847,49 +772,108 @@
         return;
       }
 
-      if (khatmasStore[code]) {
-        openKhatma(code);
-      } else {
-        // Auto create mock khatma for user experience
-        khatmasStore[code] = {
-          id: code,
-          title: `ختمة (${code})`,
-          desc: 'ختمة منشأة حديثاً عبر الكود',
-          parts: createEmptyParts(),
-          createdAt: Date.now()
-        };
-        openKhatma(code);
-      }
+      db.ref('khatmas/' + code).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          openKhatma(code);
+        } else {
+          // إنشاء جديد بنفس الكود إن لم تكن موجودة
+          const newKhatma = {
+            id: code,
+            title: `ختمة (${code})`,
+            desc: 'ختمة منشأة حديثاً عبر الكود',
+            parts: createEmptyParts(),
+            createdAt: Date.now()
+          };
+          db.ref('khatmas/' + code).set(newKhatma).then(() => {
+            openKhatma(code);
+          });
+        }
+      });
     }
 
     function createNewDemoKhatma() {
       const newId = "K-" + Math.floor(3000 + Math.random() * 6000);
       const parts = createEmptyParts();
-      // random 3 parts reading
       parts[1] = { status: 'reading', user: 'شخص 1' };
       parts[7] = { status: 'completed', user: 'شخص 2' };
 
-      khatmasStore[newId] = {
+      db.ref('khatmas/' + newId).set({
         id: newId,
         title: `ختمة الأجر والعافية ${newId}`,
         desc: 'ختمة جماعية تجريبية جارية',
         parts: parts,
         createdAt: Date.now()
-      };
+      }).then(() => {
+        showToast("تم إضافة ختمة نموذجية جديدة للتحقق", "info");
+      });
+    }
 
-      renderDemoKhatmat();
-      showToast("تم إضافة ختمة نموذجية جديدة للتحقق", "info");
+    /* ==========================================
+       SIMULATION ENGINE
+       ========================================== */
+    function toggleSimulationEngine() {
+      const btn = document.getElementById('sim-toggle-btn');
+      const indicator = document.getElementById('sim-status-indicator');
+
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        btn.innerHTML = `<i class="fa-solid fa-play text-xs"></i> <span>تشغيل محاكاة دخول القراء</span>`;
+        btn.classList.replace('bg-rose-600', 'bg-amber-500');
+        if (indicator) indicator.classList.add('hidden');
+        showToast("تم إيقاف محاكاة التفاعل الآلي", "info");
+      } else {
+        if (!activeKhatmaId) {
+          db.ref('khatmas').limitToFirst(1).once('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+              const firstKey = Object.keys(data)[0];
+              openKhatma(firstKey);
+            }
+          });
+        }
+
+        simulationInterval = setInterval(runSimulationStep, 2500);
+        btn.innerHTML = `<i class="fa-solid fa-pause text-xs"></i> <span>إيقاف المحاكاة الآلية</span>`;
+        btn.classList.replace('bg-amber-500', 'bg-rose-600');
+        if (indicator) indicator.classList.remove('hidden');
+        showToast("بدأت المحاكاة: سيقوم النظام بمحاكاة انضمام أشخاص آخرين الآن!", "success");
+      }
+    }
+
+    function runSimulationStep() {
+      if (!activeKhatmaId || !currentKhatmaData || !currentKhatmaData.parts) return;
+
+      const available = [];
+      const reading = [];
+
+      for (let i = 1; i <= 30; i++) {
+        const p = currentKhatmaData.parts[i];
+        if (p) {
+          if (p.status === 'available') available.push(i);
+          if (p.status === 'reading') reading.push(i);
+        }
+      }
+
+      const actionType = Math.random() > 0.4 ? 'reserve' : 'finish';
+
+      if (actionType === 'reserve' && available.length > 0) {
+        const juzToReserve = available[Math.floor(Math.random() * available.length)];
+        const simUser = `شخص ${userSequenceCounter++}`;
+        changePartStatus(juzToReserve, 'reading');
+      } else if (reading.length > 0) {
+        const juzToFinish = reading[Math.floor(Math.random() * reading.length)];
+        changePartStatus(juzToFinish, 'completed');
+      }
     }
 
     /* ==========================================
        UTILITIES, TOASTS & DARK MODE
        ========================================== */
-
     function copyShareLink() {
       if (!activeKhatmaId) return;
       const url = window.location.origin + window.location.pathname + '#' + activeKhatmaId;
       
-      // Fallback copy execCommand
       const tempInput = document.createElement("input");
       tempInput.value = url;
       document.body.appendChild(tempInput);
@@ -958,12 +942,10 @@
 
       container.appendChild(toast);
 
-      // Animate In
       requestAnimationFrame(() => {
         toast.classList.remove('translate-y-[-10px]', 'opacity-0');
       });
 
-      // Auto Dismiss
       setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-[-10px]');
         setTimeout(() => toast.remove(), 300);
